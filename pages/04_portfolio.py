@@ -316,10 +316,15 @@ score_trend = 70.0 if (not np.isnan(sma200) and current_price > sma200) else 30.
 opp_score = 0.30 * score_rsi + 0.25 * score_bb + 0.25 * score_pct + 0.20 * score_trend
 
 ml_signal_txt = None
-if "latest_signal" in st.session_state and st.session_state.get("latest_signal") is not None:
-    sig = int(st.session_state["latest_signal"])
-    ml_signal_txt = {1: "🟢 ML prédit une hausse", 0: "⚪ ML prédit une stabilité", -1: "🔴 ML prédit une baisse"}.get(sig)
-    opp_score = opp_score * 0.6 + (70 if sig == 1 else 20 if sig == -1 else 50) * 0.4
+_raw_sig_t = st.session_state.get("latest_signal")
+if _raw_sig_t is not None:
+    _s = _raw_sig_t["signal"] if isinstance(_raw_sig_t, dict) else _raw_sig_t
+    try:
+        sig = int(_s)
+        ml_signal_txt = {1: "🟢 ML prédit une hausse", 0: "⚪ ML prédit une stabilité", -1: "🔴 ML prédit une baisse"}.get(sig)
+        opp_score = opp_score * 0.6 + (70 if sig == 1 else 20 if sig == -1 else 50) * 0.4
+    except (TypeError, ValueError):
+        pass
 
 col_score, col_indicators = st.columns([1, 2])
 
@@ -459,11 +464,16 @@ if st.button("🔮 Lancer la projection", key="btn_proj", type="primary"):
         f"(σ = {sigma*100:.2f}%/j calibré sur {n_hist} jours)"
     )
 
-    if "latest_signal" in st.session_state and st.session_state.get("latest_signal") is not None:
-        sig = int(st.session_state["latest_signal"])
-        ml_txt = {1: "🟢 Signal ML haussier — scénario Bull plus probable", 0: "⚪ Signal ML neutre", -1: "🔴 Signal ML baissier — scénario Bear à surveiller"}.get(sig)
-        if ml_txt:
-            st.info(f"**Signal ML (page Prédictions) :** {ml_txt}")
+    _raw_sig_p = st.session_state.get("latest_signal")
+    if _raw_sig_p is not None:
+        _sp = _raw_sig_p["signal"] if isinstance(_raw_sig_p, dict) else _raw_sig_p
+        try:
+            _sig_int = int(_sp)
+            ml_txt = {1: "🟢 Signal ML haussier — scénario Bull plus probable", 0: "⚪ Signal ML neutre", -1: "🔴 Signal ML baissier — scénario Bear à surveiller"}.get(_sig_int)
+            if ml_txt:
+                st.info(f"**Signal ML (page Prédictions) :** {ml_txt}")
+        except (TypeError, ValueError):
+            pass
 
     # Fan chart
     x_days   = list(range(1, proj_horizon + 1))

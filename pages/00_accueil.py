@@ -61,12 +61,20 @@ except Exception:
 st.caption(f"Cours indicatifs yfinance — {datetime.now().strftime('%d/%m/%Y %H:%M')} (cache 1h)")
 
 # Signal ML si disponible en session
-if st.session_state.get("latest_signal") is not None:
-    sig = int(st.session_state["latest_signal"])
+_raw_sig = st.session_state.get("latest_signal")
+if _raw_sig is not None:
+    # latest_signal peut être un int {-1,0,1} ou un dict {"signal": int, ...}
+    if isinstance(_raw_sig, dict):
+        _raw_sig = _raw_sig.get("signal", _raw_sig.get("direction", _raw_sig.get("value")))
+    try:
+        sig = int(_raw_sig)
+    except (TypeError, ValueError):
+        sig = None
     horizon = st.session_state.get("horizon", 5)
-    sig_map = {1: ("🟢", "Haussier", "success"), 0: ("⚪", "Neutre", "info"), -1: ("🔴", "Baissier", "warning")}
-    emoji, label, kind = sig_map.get(sig, ("⚪", "Neutre", "info"))
-    getattr(st, kind)(f"{emoji} **Signal ML actuel : {label}** à horizon {horizon}j — entraîné sur la page Prédictions ML")
+    if sig is not None:
+        sig_map = {1: ("🟢", "Haussier", "success"), 0: ("⚪", "Neutre", "info"), -1: ("🔴", "Baissier", "warning")}
+        emoji, label, kind = sig_map.get(sig, ("⚪", "Neutre", "info"))
+        getattr(st, kind)(f"{emoji} **Signal ML actuel : {label}** à horizon {horizon}j — entraîné sur la page Prédictions ML")
 
 st.markdown("---")
 
