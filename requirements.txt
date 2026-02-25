@@ -1,0 +1,36 @@
+# GoldSignal -- requirements.txt
+# Python 3.11+ | Streamlit Community Cloud compatible
+
+# -- Web framework ---
+streamlit>=1.32.0
+
+# -- Data fetching ---
+yfinance>=0.2.38
+pandas-datareader>=0.10.0
+fredapi>=0.5.1
+requests>=2.31.0
+
+# -- Data manipulation ---
+pandas>=2.2.0
+numpy>=1.26.0
+scipy>=1.13.0
+
+# -- Technical analysis ---
+statsmodels>=0.14.2
+
+# -- Machine learning ---
+scikit-learn>=1.4.0
+xgboost>=2.0.3
+
+# -- Deep learning (CPU-only wheel -- evite ~1.6GB CUDA sur Streamlit Cloud) ---
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch>=2.2.0
+
+# -- Visualisation ---
+plotly>=5.20.0
+
+# -- Export ---
+openpyxl>=3.1.2
+
+# -- Misc ---
+python-dotenv>=1.0.1

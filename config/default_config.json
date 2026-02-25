@@ -1,0 +1,130 @@
+{
+  "_comment": "GoldSignal — Configuration par défaut. Modifiable via la page Config.",
+  "version": "1.0",
+
+  "pieces": [
+    {
+      "id": "nap20",
+      "nom": "Napoléon 20F",
+      "metal": "or",
+      "g_fin": 5.806,
+      "comment": "5.806 g d'or fin (titre 900‰)",
+      "compare_to": null,
+      "actif": true
+    },
+    {
+      "id": "nap10",
+      "nom": "Napoléon 10F",
+      "metal": "or",
+      "g_fin": 2.903,
+      "comment": "2.903 g d'or fin (titre 900‰)",
+      "compare_to": "nap20",
+      "actif": true
+    },
+    {
+      "id": "herc50",
+      "nom": "50F Hercule",
+      "metal": "argent",
+      "g_fin": 27.0,
+      "comment": "27.0 g d'argent fin (titre 900‰)",
+      "compare_to": null,
+      "actif": true
+    },
+    {
+      "id": "oz_ag",
+      "nom": "1 oz Argent Philharmonique",
+      "metal": "argent",
+      "g_fin": 31.103,
+      "comment": "31.103 g d'argent fin (1 troy oz, titre 999‰)",
+      "compare_to": "herc50",
+      "actif": true
+    }
+  ],
+
+  "seuils": {
+    "or": {
+      "prime_good_max": 2.0,
+      "prime_warn_max": 5.0,
+      "spread_good_max": 2.0,
+      "spread_warn_max": 4.0,
+      "score_good_max": 4.0,
+      "score_warn_max": 8.0
+    },
+    "argent": {
+      "prime_good_max": 5.0,
+      "prime_warn_max": 10.0,
+      "spread_good_max": 5.0,
+      "spread_warn_max": 10.0,
+      "score_good_max": 10.0,
+      "score_warn_max": 20.0
+    }
+  },
+
+  "macro": {
+    "rolling_corr_window": 60,
+    "rsi_period": 14,
+    "bollinger_window": 20,
+    "bollinger_sigma": 2,
+    "macd_fast": 12,
+    "macd_slow": 26,
+    "macd_signal": 9,
+    "atr_period": 14,
+    "sma_periodes": [20, 50, 200],
+    "vix_fear_threshold": 30,
+    "vix_greed_threshold": 15,
+    "taux_reels_bas_seuil": 0.0,
+    "ratio_or_argent_fenetre_percentile_ans": 20,
+    "signal_macro_seuil_achat": 3
+  },
+
+  "modeles": {
+    "horizon_jours": [5, 15, 30],
+    "walk_forward_splits": 5,
+    "train_size_min_jours": 500,
+    "features_actives": [
+      "log_return_1", "log_return_2", "log_return_5",
+      "rsi_14", "atr_14",
+      "prix_sur_sma20", "prix_sur_sma50",
+      "taux_reels_lag1", "taux_reels_lag5",
+      "dxy_return_lag1",
+      "vix_niveau",
+      "ratio_or_argent",
+      "mois"
+    ],
+    "arima_max_p": 5,
+    "arima_max_q": 5,
+    "rf_n_estimators": 200,
+    "rf_max_depth": 8,
+    "lstm_hidden_size": 64,
+    "lstm_num_layers": 2,
+    "lstm_seq_len": 30,
+    "lstm_epochs": 50,
+    "lstm_batch_size": 32,
+    "lstm_lr": 0.001
+  },
+
+  "portfolio": {
+    "alerte_pl_vente_pct": 20.0,
+    "alerte_prime_achat_max_pct": 3.0,
+    "cible_allocation_or_pct": 70,
+    "cible_allocation_argent_pct": 30
+  },
+
+  "api": {
+    "fred_api_key": "",
+    "cache_ttl_heures": 24,
+    "devise": "EUR",
+    "eurusd_ticker": "EURUSD=X"
+  },
+
+  "tickers_yfinance": {
+    "xau": "GC=F",
+    "xag": "SI=F",
+    "dxy": "DX-Y.NYB",
+    "sp500": "^GSPC",
+    "tnx": "^TNX",
+    "eurusd": "EURUSD=X",
+    "vix": "^VIX",
+    "wti": "CL=F"
+  }
+}

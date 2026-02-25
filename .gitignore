@@ -1,0 +1,53 @@
+# ─── Python ──────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+
+# ─── Environnements virtuels ─────────────────────────────────────────────────
+.venv/
+venv/
+env/
+.env
+
+# ─── SQLite (données locales — non committées) ────────────────────────────────
+data/*.db
+data/*.db-shm
+data/*.db-wal
+*.db
+*.sqlite
+*.sqlite3
+
+# ─── Streamlit secrets (JAMAIS committer) ─────────────────────────────────────
+.streamlit/secrets.toml
+
+# ─── Logs & artefacts temporaires ────────────────────────────────────────────
+*.log
+streamlit_log.txt
+*.tmp
+*.bak
+
+# ─── IDE ─────────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# ─── OS ──────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ─── Notebook checkpoints ────────────────────────────────────────────────────
+.ipynb_checkpoints/
+
+# ─── Modèles entraînés (trop lourds pour Git) ────────────────────────────────
+*.pkl
+*.joblib
+*.pt
+*.pth

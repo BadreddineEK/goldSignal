@@ -1,0 +1,15 @@
+[theme]
+base = "dark"
+primaryColor = "#f59e0b"          # or — amber gold
+backgroundColor = "#0f172a"       # slate-900
+secondaryBackgroundColor = "#1e293b"  # slate-800
+textColor = "#f1f5f9"             # slate-100
+font = "sans serif"
+
+[server]
+headless = true
+enableCORS = false
+enableXsrfProtection = true
+
+[browser]
+gatherUsageStats = false
