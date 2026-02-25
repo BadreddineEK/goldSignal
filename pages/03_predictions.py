@@ -152,82 +152,151 @@ st.success(f"✅ Données chargées : **{len(close)}** observations | de {close.
 st.markdown("---")
 
 # ---------------------------------------------------------------------------
-# Panneau de configuration latérale
+# Détection environnement Cloud / Local
 # ---------------------------------------------------------------------------
-with st.sidebar:
-    st.markdown("### ⚙️ Paramètres généraux")
-    horizon = st.selectbox("Horizon de prédiction", [5, 15, 30], index=0,
-                            format_func=lambda x: f"{x} jours")
-    seuil_direction = st.slider("Seuil direction (log-ret %)", 0.1, 1.0, 0.3, 0.05,
-                                 help="Ex: 0.3% → log-return > 0.003 = haussier")
-    n_splits = st.slider("Folds walk-forward", 3, 10, 5)
-    min_train = st.slider("Train minimum (observations)", 200, 1000, 400, 50)
-    test_size = st.slider("Fenêtre test par fold", 20, 120, 60, 10)
+from models.model_store import is_cloud, save_pretrained, load_pretrained, has_pretrained
+_ON_CLOUD = is_cloud()
+
+# ---------------------------------------------------------------------------
+# Paramètres de configuration (dans la page, non dans la sidebar)
+# ---------------------------------------------------------------------------
+with st.expander(
+    "⚙️ Paramètres d'entraînement",
+    expanded=(not _ON_CLOUD),  # dépliés en local, repliés sur Cloud
+):
+    st.markdown("**Général**")
+    col_g1, col_g2 = st.columns(2)
+    with col_g1:
+        horizon = st.selectbox("Horizon de prédiction", [5, 15, 30], index=0,
+                                format_func=lambda x: f"{x} jours")
+        n_splits = st.slider("Folds walk-forward", 3, 10, 5)
+        min_train = st.slider("Train minimum (obs.)", 200, 1000, 400, 50)
+    with col_g2:
+        seuil_direction = st.slider("Seuil direction (log-ret %)", 0.1, 1.0, 0.3, 0.05,
+                                     help="Ex: 0.3% → log-return > 0.003 = haussier")
+        test_size = st.slider("Fenêtre test par fold", 20, 120, 60, 10)
 
     st.markdown("---")
-    st.markdown("### 📈 ARIMA <small style='color:#94a3b8'>~5s–2min</small>", unsafe_allow_html=True)
-    run_arima = st.checkbox("Activer ARIMA", value=False,
-                             help="ARIMA est lent sur longues séries. Désactivé par défaut.")
-    if run_arima:
-        arima_mode = st.radio(
-            "Mode",
-            ["Rapide — ordre fixé (1,0,1)", "Auto-AIC — grille 2×2"],
-            index=0,
-            help="Rapide : ~5s | Auto-AIC : ~1-2 min selon les folds",
-        )
+    col_m1, col_m2 = st.columns(2)
 
-    st.markdown("---")
-    st.markdown("### 🌲 Random Forest <small style='color:#94a3b8'>~15s</small>", unsafe_allow_html=True)
-    rf_n_est = st.slider("Nombre d'arbres", 50, 500, 200, 50)
-    rf_depth = st.slider("Profondeur max", 3, 15, 8)
+    with col_m1:
+        st.markdown("**🌲 Random Forest** <small style='color:#94a3b8'>~15s</small>", unsafe_allow_html=True)
+        rf_n_est = st.slider("Arbres", 50, 500, 200, 50)
+        rf_depth = st.slider("Profondeur max RF", 3, 15, 8)
 
-    if XGB_AVAILABLE:
-        st.markdown("### 🚀 XGBoost <small style='color:#94a3b8'>~20s</small>", unsafe_allow_html=True)
-        xgb_n_est = st.slider("Rounds boosting", 50, 500, 200, 50)
-        xgb_depth = st.slider("Profondeur max XGB", 2, 10, 5)
-        xgb_lr = st.select_slider("Learning rate", [0.01, 0.03, 0.05, 0.1, 0.2], value=0.05)
-
-    if LSTM_AVAILABLE:
-        st.markdown("### 🧠 LSTM <small style='color:#94a3b8'>~2–5min</small>", unsafe_allow_html=True)
-        run_lstm = st.checkbox("Activer LSTM", value=True)
-        if run_lstm:
-            lstm_seq_len    = st.slider("Fenêtre séquence", 10, 60, 30, 5)
-            lstm_hidden     = st.select_slider("Neurones LSTM", [32, 64, 128, 256], value=64)
-            lstm_layers     = st.slider("Couches LSTM", 1, 3, 2)
-            lstm_dropout    = st.slider("Dropout", 0.0, 0.5, 0.3, 0.05)
-            lstm_epochs     = st.slider("Époques max", 20, 200, 80, 10)
-            lstm_patience   = st.slider("Early stopping (patience)", 5, 30, 10)
-            lstm_bidir      = st.checkbox("Bidirectionnel", value=False)
+        if LSTM_AVAILABLE:
+            st.markdown("**🧠 LSTM** <small style='color:#94a3b8'>~2–5min</small>", unsafe_allow_html=True)
+            run_lstm = st.checkbox("Activer LSTM", value=False)
+            if run_lstm:
+                lstm_seq_len  = st.slider("Séquence", 10, 60, 30, 5)
+                lstm_hidden   = st.select_slider("Neurones", [32, 64, 128, 256], value=64)
+                lstm_layers   = st.slider("Couches", 1, 3, 2)
+                lstm_dropout  = st.slider("Dropout", 0.0, 0.5, 0.3, 0.05)
+                lstm_epochs   = st.slider("Époques max", 20, 200, 80, 10)
+                lstm_patience = st.slider("Patience early stop", 5, 30, 10)
+                lstm_bidir    = st.checkbox("Bidirectionnel", value=False)
+            else:
+                lstm_seq_len, lstm_hidden, lstm_layers = 30, 64, 2
+                lstm_dropout, lstm_epochs, lstm_patience, lstm_bidir = 0.3, 80, 10, False
         else:
+            run_lstm = False
             lstm_seq_len, lstm_hidden, lstm_layers = 30, 64, 2
             lstm_dropout, lstm_epochs, lstm_patience, lstm_bidir = 0.3, 80, 10, False
 
-    if HYBRID_AVAILABLE:
-        st.markdown("### 🔀 Hybride <small style='color:#94a3b8'>+1–2min</small>", unsafe_allow_html=True)
-        run_hybrid = st.checkbox("Activer Stacking Hybride", value=False,
-                                  help="RF + XGBoost + LSTM → méta-apprenant LogReg")
+    with col_m2:
+        if XGB_AVAILABLE:
+            st.markdown("**🚀 XGBoost** <small style='color:#94a3b8'>~20s</small>", unsafe_allow_html=True)
+            xgb_n_est = st.slider("Rounds boosting", 50, 500, 200, 50)
+            xgb_depth = st.slider("Profondeur max XGB", 2, 10, 5)
+            xgb_lr    = st.select_slider("Learning rate", [0.01, 0.03, 0.05, 0.1, 0.2], value=0.05)
+        else:
+            xgb_n_est, xgb_depth, xgb_lr = 200, 5, 0.05
+
+        st.markdown("**📈 ARIMA** <small style='color:#94a3b8'>~5s–2min</small>", unsafe_allow_html=True)
+        run_arima = st.checkbox("Activer ARIMA", value=False,
+                                 help="Lent sur longues séries. Désactivé par défaut.")
+        if run_arima:
+            arima_mode = st.radio(
+                "Mode ARIMA",
+                ["Rapide — ordre fixé (1,0,1)", "Auto-AIC — grille 2×2"],
+                index=0,
+            )
+        else:
+            arima_mode = "Rapide — ordre fixé (1,0,1)"
+
+        if HYBRID_AVAILABLE:
+            st.markdown("**🔀 Stacking Hybride** <small style='color:#94a3b8'>+1–2min</small>", unsafe_allow_html=True)
+            run_hybrid = st.checkbox("Activer Hybride", value=False,
+                                      help="RF + XGBoost + LSTM → méta-apprenant LogReg")
+        else:
+            run_hybrid = False
+
+# variables manquantes si XGB non dispo
+if not XGB_AVAILABLE:
+    xgb_n_est, xgb_depth, xgb_lr = 200, 5, 0.05
+if not HYBRID_AVAILABLE:
+    run_hybrid = False
 
 # ---------------------------------------------------------------------------
-# Bouton principal : lancer l'entraînement
+# Boutons : Charger modèle pré-entraîné + Entraîner
 # ---------------------------------------------------------------------------
-st.subheader("🚀 Entraînement des modèles")
+st.subheader("🚀 Prédictions ML")
 
-col_btn, col_info = st.columns([1, 2])
-with col_btn:
+if _ON_CLOUD:
+    st.info(
+        "☁️ **Mode Cloud** — L'entraînement complet prend plusieurs minutes "
+        "et peut dépasser la mémoire disponible. "
+        "Chargez le modèle pré-entraîné pour une expérience instantanée."
+    )
+
+_has_pretrained = has_pretrained(horizon)
+col_btn_load, col_btn_train, col_info = st.columns([1, 1, 2])
+
+with col_btn_load:
+    load_btn = st.button(
+        "📦 Charger modèle pré-entraîné",
+        disabled=not _has_pretrained,
+        use_container_width=True,
+        help="Charge les prédictions sauvegardées (instantané)." if _has_pretrained
+             else "Aucun modèle pré-entraîné disponible — lancez d'abord un entraînement.",
+    )
+
+with col_btn_train:
+    _train_label = "▶️ Lancer l'entraînement"
     run_btn = st.button(
-        "▶️ Lancer l'entraînement",
+        _train_label,
         type="primary",
         use_container_width=True,
-        help="Walk-forward sur l'historique complet — peut prendre 1–3 min.",
+        help="Walk-forward sur l'historique complet.",
     )
+
 with col_info:
-    st.markdown(f"""
-    - **Horizon** : {horizon} jours
-    - **Folds** : {n_splits} × {test_size} obs. de test
-    - **Train min** : {min_train} obs.
-    - **Cible** : direction ternaire (seuil {seuil_direction:.1f}%)
-    - **Protocole** : walk-forward expansion — zero leakage garanti
-    """)
+    if _has_pretrained:
+        _pt = load_pretrained(horizon) or {}
+        st.caption(f"Modèle dispo — entraîné le {_pt.get('timestamp', '?')} | horizon {horizon}j")
+    st.caption(
+        f"Horizon {horizon}j · {n_splits} folds · seuil {seuil_direction:.1f}% · "
+        f"train min {min_train} obs. · test {test_size} obs./fold"
+    )
+
+# ── Chargement du modèle pré-entraîné ──────────────────────────────────────
+if load_btn and _has_pretrained:
+    _pt = load_pretrained(horizon)
+    if _pt:
+        st.session_state["ml_results"]       = _pt["ml_results"]
+        st.session_state["rw_metrics"]        = _pt["rw_metrics"]
+        st.session_state["fi_df"]             = _pt["fi_df"]
+        st.session_state["latest_signal"]     = _pt["latest_signal"]
+        st.session_state["lstm_result"]       = _pt["lstm_result"]
+        st.session_state["hybrid_result"]     = _pt["hybrid_result"]
+        st.session_state["horizon"]           = _pt["horizon"]
+        # Exposer log-returns pour backtesting
+        _rf_actuals = (_pt["ml_results"] or {}).get("rf", {}).get("actuals")
+        if _rf_actuals is None:
+            _rf_actuals = (_pt["ml_results"] or {}).get("xgb", {}).get("actuals")
+        st.session_state["_backtest_log_returns"] = log_returns
+        st.success(f"✅ Modèle pré-entraîné chargé (horizon {_pt.get('horizon')}j — {_pt.get('timestamp', '')})")
+        st.rerun()
 
 if run_btn:
     seuil_frac = seuil_direction / 100.0
@@ -410,7 +479,30 @@ if run_btn:
         logger.debug("Persistance DB run ML : %s", _e)
 
     progress.progress(100, "✅ Entraînement terminé !")
-    st.success("Entraînement terminé — résultats ci-dessous.")
+
+    # --- 9. Sauvegarde automatique du modèle pré-entraîné ---
+    try:
+        from datetime import datetime as _dt
+        _ts = _dt.now().strftime("%d/%m/%Y %H:%M")
+        _saved = save_pretrained(
+            horizon=horizon,
+            ml_results=st.session_state.get("ml_results", {}),
+            rw_metrics=st.session_state.get("rw_metrics", {}),
+            fi_df=st.session_state.get("feature_importance", pd.DataFrame()),
+            latest_signal=st.session_state.get("latest_signal"),
+            lstm_result=st.session_state.get("lstm_result"),
+            hybrid_result=st.session_state.get("hybrid_result"),
+            seuil_direction=seuil_direction,
+            n_splits=n_splits,
+            timestamp=_ts,
+        )
+        if _saved:
+            st.success(f"✅ Entraînement terminé — modèle sauvegardé ({_ts}). Résultats ci-dessous.")
+        else:
+            st.success("✅ Entraînement terminé — résultats ci-dessous.")
+    except Exception as _se:
+        logger.debug("Sauvegarde modèle pré-entraîné : %s", _se)
+        st.success("✅ Entraînement terminé — résultats ci-dessous.")
 
 st.markdown("---")
 
@@ -480,7 +572,7 @@ with result_tabs[0]:
                 height=200, showlegend=False,
                 yaxis=dict(range=[0, 1], tickformat=".0%"),
                 paper_bgcolor="rgba(0,0,0,0)",
-                plot_bgcolor="rgba(15,23,42,0.8)",
+                plot_bgcolor="rgba(0,0,0,0)",
                 margin=dict(l=0, r=0, t=10, b=0),
             )
             st.plotly_chart(fig_p, width="stretch")
@@ -637,8 +729,8 @@ with result_tabs[2]:
         fig_oos.update_layout(
             height=280,
             paper_bgcolor="rgba(0,0,0,0)",
-            plot_bgcolor="rgba(15,23,42,0.8)",
-            yaxis=dict(gridcolor="#1e293b"),
+            plot_bgcolor="rgba(0,0,0,0)",
+            yaxis=dict(gridcolor="rgba(128,128,128,0.18)"),
             legend=dict(orientation="h", y=1.05),
             margin=dict(l=0, r=0, t=10, b=0),
         )
@@ -657,8 +749,8 @@ with result_tabs[2]:
             height=350,
             yaxis=dict(autorange="reversed"),
             paper_bgcolor="rgba(0,0,0,0)",
-            plot_bgcolor="rgba(15,23,42,0.8)",
-            xaxis=dict(gridcolor="#1e293b"),
+            plot_bgcolor="rgba(0,0,0,0)",
+            xaxis=dict(gridcolor="rgba(128,128,128,0.18)"),
             margin=dict(l=0, r=0, t=10, b=0),
         )
         st.plotly_chart(fig_fi, width="stretch")
@@ -693,8 +785,8 @@ with result_tabs[3]:
             height=280,
             xaxis_title="Époque", yaxis_title="Cross-Entropy Loss",
             paper_bgcolor="rgba(0,0,0,0)",
-            plot_bgcolor="rgba(15,23,42,0.8)",
-            yaxis=dict(gridcolor="#1e293b"),
+            plot_bgcolor="rgba(0,0,0,0)",
+            yaxis=dict(gridcolor="rgba(128,128,128,0.18)"),
             legend=dict(orientation="h", y=1.08, x=0),
             margin=dict(l=0, r=0, t=30, b=0),
         )
@@ -728,9 +820,9 @@ with result_tabs[3]:
     fig_da.add_hline(y=55, line_dash="dot",  line_color="#22c55e",  annotation_text="Cible 55%")
     fig_da.update_layout(
         height=280, barmode="group",
-        yaxis=dict(range=[30, 80], title="DA (%)", gridcolor="#1e293b"),
+        yaxis=dict(range=[30, 80], title="DA (%)", gridcolor="rgba(128,128,128,0.18)"),
         paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(15,23,42,0.8)",
+        plot_bgcolor="rgba(0,0,0,0)",
         margin=dict(l=0, r=0, t=10, b=0),
         legend=dict(orientation="h", y=1.05),
     )

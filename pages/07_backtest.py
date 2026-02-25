@@ -61,9 +61,47 @@ if log_returns is None:
         pass
 
 if ml_results is None:
-    st.warning(
-        "⚠️ Aucun modèle entraîné. Rendez-vous sur **🤖 Prédictions ML** et lancez l'entraînement."
+    st.info(
+        "⚠️ **Aucun modèle chargé en session.**\n\n"
+        "Le Backtesting P&L nécessite des signaux ML out-of-sample. "
+        "Pour y accéder, deux options :"
     )
+    col_opt1, col_opt2 = st.columns(2)
+    with col_opt1:
+        with st.container(border=True):
+            st.markdown("**Option 1 — Charger un modèle pré-entraîné**")
+            st.caption("Instantané — résultats disponibles en 1 clic")
+            try:
+                from models.model_store import list_pretrained, load_pretrained
+                pretrained_list = list_pretrained()
+            except Exception:
+                pretrained_list = []
+
+            if pretrained_list:
+                horizons_dispo = [p['horizon'] for p in pretrained_list]
+                h_sel = st.selectbox(
+                    "Horizon disponible",
+                    horizons_dispo,
+                    format_func=lambda h: f"{h} jours",
+                    key="bt_h_sel",
+                )
+                if st.button("📦 Charger le modèle pré-entraîné", type="primary", key="bt_load_btn"):
+                    bundle = load_pretrained(h_sel)
+                    if bundle:
+                        for k, v in bundle.items():
+                            st.session_state[k] = v
+                        st.success("✅ Modèle chargé ! Rechargement...")
+                        st.rerun()
+                    else:
+                        st.error("Impossible de charger le modèle.")
+            else:
+                st.warning("Aucun modèle pré-entraîné disponible.")
+
+    with col_opt2:
+        with st.container(border=True):
+            st.markdown("**Option 2 — Entraîner les modèles**")
+            st.caption("3-8 min — entraînement complet RF + XGB + LSTM")
+            st.page_link("pages/03_predictions.py", label="→ Aller sur Prédictions ML", icon="🤖")
     st.stop()
 
 # Récupérer les vrais log-rendements prix depuis session_state
@@ -233,11 +271,11 @@ fig_eq.add_hline(y=0, line_dash="dash", line_color="#475569", row=2, col=1)
 fig_eq.update_layout(
     height=520,
     paper_bgcolor="rgba(0,0,0,0)",
-    plot_bgcolor="rgba(15,23,42,0.8)",
+    plot_bgcolor="rgba(0,0,0,0)",
     legend=dict(orientation="h", y=1.08),
-    yaxis=dict(title="Capital (€)", gridcolor="#1e293b"),
-    yaxis2=dict(title="Drawdown (%)", gridcolor="#1e293b"),
-    xaxis2=dict(gridcolor="#1e293b"),
+    yaxis=dict(title="Capital (€)", gridcolor="rgba(128,128,128,0.18)"),
+    yaxis2=dict(title="Drawdown (%)", gridcolor="rgba(128,128,128,0.18)"),
+    xaxis2=dict(gridcolor="rgba(128,128,128,0.18)"),
     hovermode="x unified",
     margin=dict(l=0, r=0, t=30, b=0),
 )
@@ -277,7 +315,7 @@ if trade_pl_list:
         barmode="overlay",
         height=300,
         paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(15,23,42,0.8)",
+        plot_bgcolor="rgba(0,0,0,0)",
         xaxis_title="Rendement par trade (%)",
         yaxis_title="Fréquence",
         legend=dict(orientation="h"),
@@ -312,7 +350,7 @@ if not monthly.empty:
         fig_cal = px.imshow(
             pivot,
             color_continuous_scale=[
-                [0.0, "#ef4444"], [0.5, "#1e293b"], [1.0, "#22c55e"],
+                [0.0, "#ef4444"], [0.5, "#64748b"], [1.0, "#22c55e"],
             ],
             color_continuous_midpoint=0,
             text_auto=".1f",
@@ -321,7 +359,7 @@ if not monthly.empty:
         fig_cal.update_layout(
             height=min(50 * len(pivot) + 80, 400),
             paper_bgcolor="rgba(0,0,0,0)",
-            plot_bgcolor="rgba(15,23,42,0.8)",
+            plot_bgcolor="rgba(0,0,0,0)",
             coloraxis_colorbar=dict(title="Rdt (%)"),
             margin=dict(l=0, r=0, t=10, b=0),
             xaxis_title="Mois",

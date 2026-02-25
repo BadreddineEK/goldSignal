@@ -25,7 +25,7 @@ from utils.export import export_config_json, import_config_json, export_filename
 st.header("⚙️ Configuration")
 st.caption("Gérez les pièces, les seuils, les paramètres et la clé API FRED.")
 
-tabs = st.tabs(["🪙 Pièces & Seuils", "📊 Macro", "💼 Portefeuille", "🔑 API", "📤 Import/Export"])
+tabs = st.tabs(["🪙 Pièces & Seuils", "📊 Macro", "� Alertes & Signaux", "🔑 API", "📤 Import/Export"])
 
 # ---------------------------------------------------------------------------
 # Tab 1 : Pièces & Seuils
@@ -132,29 +132,41 @@ with tabs[1]:
             st.cache_data.clear()
 
 # ---------------------------------------------------------------------------
-# Tab 3 : Portefeuille
+# Tab 3 : Alertes & Signaux
 # ---------------------------------------------------------------------------
 with tabs[2]:
-    st.subheader("Paramètres portefeuille & alertes")
+    st.subheader("🔔 Alertes & seuils de signal")
+    st.caption(
+        "Seuils utilisés par le Calculateur (alerte prime) "
+        "et le Backtesting (seuil de signal actionnable)."
+    )
     cfg_p = get_config("portfolio") or {}
 
-    with st.form("form_portfolio"):
+    with st.form("form_alertes"):
         col1, col2 = st.columns(2)
         with col1:
-            pl_alerte = st.number_input("Alerte vente si P&L > (%)", value=float(cfg_p.get("alerte_pl_vente_pct", 20.0)), step=1.0)
-            prime_alerte = st.number_input("Alerte achat si Prime < (%)", value=float(cfg_p.get("alerte_prime_achat_max_pct", 3.0)), step=0.5)
+            prime_alerte = st.number_input(
+                "Alerte achat si Prime < (%)",
+                value=float(cfg_p.get("alerte_prime_achat_max_pct", 3.0)),
+                step=0.5,
+                help="Le Calculateur signalera une opportunité si la prime est inférieure à ce seuil",
+            )
         with col2:
-            cible_or = st.slider("Cible allocation or (%)", 0, 100, int(cfg_p.get("cible_allocation_or_pct", 70)))
-            st.caption(f"Cible argent : {100 - cible_or}%")
+            signal_threshold = st.number_input(
+                "Seuil de signal actionnable (probabilité min %)",
+                value=float(cfg_p.get("signal_proba_threshold", 55.0)),
+                step=1.0,
+                min_value=50.0, max_value=90.0,
+                help="Probabilité ML minimale requise pour considérer un signal comme actionnable",
+            )
 
         if st.form_submit_button("💾 Sauvegarder"):
-            set_config("portfolio", {**cfg_p,
-                "alerte_pl_vente_pct": pl_alerte,
+            set_config("portfolio", {
+                **cfg_p,
                 "alerte_prime_achat_max_pct": prime_alerte,
-                "cible_allocation_or_pct": cible_or,
-                "cible_allocation_argent_pct": 100 - cible_or,
+                "signal_proba_threshold": signal_threshold,
             })
-            st.success("✅ Paramètres portefeuille sauvegardés.")
+            st.success("✅ Alertes sauvegardées.")
 
 # ---------------------------------------------------------------------------
 # Tab 4 : API

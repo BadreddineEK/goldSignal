@@ -94,21 +94,11 @@ st.markdown(
         font-family: 'Inter', 'Segoe UI', sans-serif;
     }
 
-    /* Sidebar */
-    [data-testid="stSidebar"] {
-        background: #0f172a;
-        color: #f8fafc;
-    }
-    [data-testid="stSidebar"] a {
-        color: #f59e0b !important;
-    }
-
     /* Métriques */
     [data-testid="metric-container"] {
-        background: #1e293b;
         border-radius: 8px;
         padding: 12px;
-        border: 1px solid #334155;
+        border: 1px solid rgba(148,163,184,0.25);
     }
 
     /* Boutons primaires */
@@ -124,7 +114,7 @@ st.markdown(
 
     /* Tables */
     [data-testid="stDataFrame"] {
-        border: 1px solid #334155;
+        border: 1px solid rgba(148,163,184,0.25);
         border-radius: 8px;
     }
 
@@ -141,10 +131,15 @@ st.markdown(
 
 pages = [
     st.Page(
+        "pages/00_accueil.py",
+        title="Accueil",
+        icon="🏠",
+        default=True,
+    ),
+    st.Page(
         "pages/01_calculateur.py",
         title="Calculateur",
         icon="🧮",
-        default=True,
     ),
     st.Page(
         "pages/02_macro.py",
@@ -158,13 +153,13 @@ pages = [
     ),
     st.Page(
         "pages/04_portfolio.py",
-        title="Portefeuille",
-        icon="💼",
+        title="Simulateur",
+        icon="💰",
     ),
     st.Page(
-        "pages/05_config.py",
-        title="Config",
-        icon="⚙️",
+        "pages/07_backtest.py",
+        title="Backtesting P&L",
+        icon="📈",
     ),
     st.Page(
         "pages/06_benchmark.py",
@@ -172,9 +167,9 @@ pages = [
         icon="📐",
     ),
     st.Page(
-        "pages/07_backtest.py",
-        title="Backtesting P&L",
-        icon="📈",
+        "pages/05_config.py",
+        title="Config",
+        icon="⚙️",
     ),
 ]
 

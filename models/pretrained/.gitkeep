@@ -1,0 +1,3 @@
+# Ce dossier contient les modèles ML pré-entraînés (.pkl.gz)
+# Voir models/model_store.py pour la logique save/load
+# Les fichiers *.pkl.gz dans ce dossier sont committés pour Streamlit Cloud

@@ -51,3 +51,6 @@ desktop.ini
 *.joblib
 *.pt
 *.pth
+
+# Exception : modèles pré-entraînés committés pour Streamlit Cloud
+!models/pretrained/*.pkl.gz

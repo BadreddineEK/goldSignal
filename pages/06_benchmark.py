@@ -35,7 +35,47 @@ KEYS = ["ml_results", "arima_result", "lstm_result", "hybrid_result", "rw_metric
 available = {k: st.session_state.get(k) for k in KEYS}
 
 if not available["ml_results"]:
-    st.warning("⚠️ Aucun modèle entraîné. Rendez-vous sur **🤖 Prédictions ML** et lancez l'entraînement.")
+    st.info(
+        "⚠️ **Aucun modèle chargé en session.**\n\n"
+        "Cette page analyse les résultats des modèles ML entraînés. "
+        "Pour y accéder, deux options :"
+    )
+    col_opt1, col_opt2 = st.columns(2)
+    with col_opt1:
+        with st.container(border=True):
+            st.markdown("**Option 1 — Charger un modèle pré-entraîné**")
+            st.caption("Instantané — résultats disponibles en 1 clic")
+            try:
+                from models.model_store import list_pretrained, load_pretrained, has_pretrained
+                pretrained_list = list_pretrained()
+            except Exception:
+                pretrained_list = []
+
+            if pretrained_list:
+                horizons_dispo = [p['horizon'] for p in pretrained_list]
+                h_sel = st.selectbox(
+                    "Horizon disponible",
+                    horizons_dispo,
+                    format_func=lambda h: f"{h} jours",
+                    key="bench_h_sel",
+                )
+                if st.button("📦 Charger le modèle pré-entraîné", type="primary", key="bench_load_btn"):
+                    bundle = load_pretrained(h_sel)
+                    if bundle:
+                        for k, v in bundle.items():
+                            st.session_state[k] = v
+                        st.success("✅ Modèle chargé ! Rechargement...")
+                        st.rerun()
+                    else:
+                        st.error("Impossible de charger le modèle.")
+            else:
+                st.warning("Aucun modèle pré-entraîné disponible.")
+
+    with col_opt2:
+        with st.container(border=True):
+            st.markdown("**Option 2 — Entraîner les modèles**")
+            st.caption("3-8 min — entraînement complet RF + XGB + LSTM")
+            st.page_link("pages/03_predictions.py", label="→ Aller sur Prédictions ML", icon="🤖")
     st.stop()
 
 ml   = available["ml_results"]
@@ -185,7 +225,7 @@ fig_radar.update_layout(
     polar=dict(radialaxis=dict(visible=True, range=[0, 5])),
     height=400,
     paper_bgcolor="rgba(0,0,0,0)",
-    plot_bgcolor="rgba(15,23,42,0.8)",
+    plot_bgcolor="rgba(0,0,0,0)",
     legend=dict(orientation="h", y=-0.1),
     margin=dict(l=20, r=20, t=20, b=40),
 )
@@ -222,12 +262,12 @@ if lstm.get("learning_curves"):
     fig_lc.update_layout(
         height=280,
         paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(15,23,42,0.8)",
+        plot_bgcolor="rgba(0,0,0,0)",
         legend=dict(orientation="h", y=1.08),
         margin=dict(l=0, r=0, t=40, b=0),
         font=dict(color="#e2e8f0"),
     )
-    fig_lc.update_yaxes(gridcolor="#1e293b")
+    fig_lc.update_yaxes(gridcolor="rgba(128,128,128,0.18)")
     st.plotly_chart(fig_lc, width="stretch")
     st.caption(
         "Early stopping actif : l'entraînement s'arrête quand la val-loss stagne "
@@ -262,8 +302,8 @@ if lstm.get("attention") and len(lstm["attention"]) > 0:
             yaxis_title="Poids d'attention moyen",
             height=250,
             paper_bgcolor="rgba(0,0,0,0)",
-            plot_bgcolor="rgba(15,23,42,0.8)",
-            yaxis=dict(gridcolor="#1e293b"),
+            plot_bgcolor="rgba(0,0,0,0)",
+            yaxis=dict(gridcolor="rgba(128,128,128,0.18)"),
             margin=dict(l=0, r=0, t=10, b=0),
         )
         st.plotly_chart(fig_attn, width="stretch")
@@ -361,9 +401,9 @@ fig_folds.add_hline(y=50, line_dash="dash", line_color="#64748b", annotation_tex
 fig_folds.add_hline(y=55, line_dash="dot",  line_color="#22c55e",  annotation_text="Cible (55%)")
 fig_folds.update_layout(
     height=320,
-    yaxis=dict(range=[30, 80], title="DA (%)", gridcolor="#1e293b"),
+    yaxis=dict(range=[30, 80], title="DA (%)", gridcolor="rgba(128,128,128,0.18)"),
     paper_bgcolor="rgba(0,0,0,0)",
-    plot_bgcolor="rgba(15,23,42,0.8)",
+    plot_bgcolor="rgba(0,0,0,0)",
     legend=dict(orientation="h", y=1.05),
     margin=dict(l=0, r=0, t=10, b=0),
 )
@@ -425,10 +465,10 @@ if models_with_probas:
 
     fig_cal.update_layout(
         height=300,
-        xaxis=dict(title="Probabilité haussier prédite", range=[0, 1], gridcolor="#1e293b"),
-        yaxis=dict(title="Fréquence réelle haussier",    range=[0, 1], gridcolor="#1e293b"),
+        xaxis=dict(title="Probabilité haussier prédite", range=[0, 1], gridcolor="rgba(128,128,128,0.18)"),
+        yaxis=dict(title="Fréquence réelle haussier",    range=[0, 1], gridcolor="rgba(128,128,128,0.18)"),
         paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(15,23,42,0.8)",
+        plot_bgcolor="rgba(0,0,0,0)",
         legend=dict(orientation="h", y=1.05),
         margin=dict(l=0, r=0, t=10, b=0),
     )
@@ -506,8 +546,8 @@ if hyb.get("meta_coefs") is not None and len(hyb.get("meta_coefs", [])) > 0:
                             barmode="group", height=240,
                             title=dict(text="Coefficients méta-apprenant par classe de sortie"),
                             paper_bgcolor="rgba(0,0,0,0)",
-                            plot_bgcolor="rgba(15,23,42,0.8)",
-                            yaxis=dict(gridcolor="#1e293b"),
+                            plot_bgcolor="rgba(0,0,0,0)",
+                            yaxis=dict(gridcolor="rgba(128,128,128,0.18)"),
                             legend=dict(orientation="h", y=1.1),
                             margin=dict(l=0, r=0, t=40, b=0),
                         )
