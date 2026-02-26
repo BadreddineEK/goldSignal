@@ -361,18 +361,53 @@ with col_score:
     if ml_signal_txt:
         st.caption(f"Signal ML : {ml_signal_txt}")
 
+    # Détail du score
+    with st.expander("📊 Détail du score opportunité"):
+        st.markdown("""
+        Le **score d'opportunité** (0–100) est une combinaison pondérée de 4 composantes :
+
+        | Composante | Poids | Logique |
+        |---|---|---|
+        | RSI 14j | 30% | Bas RSI = survente = achat potentiel |
+        | Position Bollinger | 25% | Bas de bande = prix bas historiquement |
+        | Percentile 1 an | 25% | < 25e centile = prix bas sur 1 an |
+        | Tendance SMA 200 | 20% | Au-dessus = tendance positive |
+
+        Si un **signal ML** est disponible (page Prédictions), il remplace 40% du score
+        technique (60% compos. tech. + 40% signal ML).
+
+         
+        **Interprétation** :
+        - **65–100** 🟢 : zone d’achat — confluence de signaux favorables
+        - **35–65** ⚪ : zone neutre — pas de signal fort
+        - **0–35** 🔴 : zone de prudence — prix élevé ou suracheté
+
+        ⚠️ *Ce score est un outil de réflexion, pas une recommandation d’achat.*
+        """)
+        sc1, sc2, sc3, sc4 = st.columns(4)
+        sc1.metric("RSI (30%)",         f"{score_rsi:.0f}/100",  f"{0.30*score_rsi:.1f} pts")
+        sc2.metric("Bollinger (25%)",   f"{score_bb:.0f}/100",   f"{0.25*score_bb:.1f} pts")
+        sc3.metric("Percentile (25%)",  f"{score_pct:.0f}/100",  f"{0.25*score_pct:.1f} pts")
+        sc4.metric("SMA 200 (20%)",     f"{score_trend:.0f}/100",f"{0.20*score_trend:.1f} pts")
+
 with col_indicators:
     st.markdown("##### Indicateurs détaillés")
     inds = [
-        ("RSI 14j",            f"{rsi_14:.1f}",        "< 30 : survente (opportunité)",      _GREEN if rsi_14 < 40    else (_RED if rsi_14 > 60    else _GREY)),
-        ("Position Bollinger", f"{bb_pct:.0f}%",        "0% = bas bande, 100% = haut bande",  _GREEN if bb_pct < 25    else (_RED if bb_pct > 75    else _GREY)),
-        ("Percentile 1 an",    f"{pct_rank_1y:.0f}e",   "< 25 = prix bas sur 1 an",           _GREEN if pct_rank_1y < 30 else (_RED if pct_rank_1y > 70 else _GREY)),
+        ("RSI 14j",            f"{rsi_14:.1f}",
+         "< 30 = survente | 30–70 = normal | > 70 = surachat",
+         _GREEN if rsi_14 < 40 else (_RED if rsi_14 > 60 else _GREY)),
+        ("Position Bollinger (BB%)", f"{bb_pct:.0f}%",
+         "0% = bas bande inf. (opportunité) | 100% = bande sup. (méfiance)",
+         _GREEN if bb_pct < 25 else (_RED if bb_pct > 75 else _GREY)),
+        ("Percentile 1 an",    f"{pct_rank_1y:.0f}e",
+         "Ex : 20e = prix inférieur à 80% des jours de l’année → prix bas",
+         _GREEN if pct_rank_1y < 30 else (_RED if pct_rank_1y > 70 else _GREY)),
         ("vs SMA 200j",        f"{current_price / sma200 * 100:.1f}%" if not np.isnan(sma200) else "N/A",
-                                "Au-dessus = tendance haussière",
-                                _GREEN if (not np.isnan(sma200) and current_price > sma200) else _RED),
+         "Moyenne mobile 200j. > 100% = tendance haussière. Signal long-terme.",
+         _GREEN if (not np.isnan(sma200) and current_price > sma200) else _RED),
         ("vs SMA 50j",         f"{current_price / sma50 * 100:.1f}%" if not np.isnan(sma50) else "N/A",
-                                "> 100% = au-dessus de la moyenne",
-                                _GREEN if (not np.isnan(sma50) and current_price > sma50) else _RED),
+         "Moyenne mobile 50j. > 100% = momentum positif court terme.",
+         _GREEN if (not np.isnan(sma50) and current_price > sma50) else _RED),
     ]
     for label, val, help_txt, color in inds:
         ic1, ic2, ic3 = st.columns([2, 1, 3])
@@ -418,12 +453,35 @@ st.markdown("---")
 # ===========================================================================
 # SECTION 3 — Projection Monte-Carlo
 # ===========================================================================
-st.subheader("🔮 Projection : que se passe-t-il si j'investis maintenant ?")
+st.subheader("🔮 Projection Monte-Carlo : que se passe-t-il si j’investis maintenant ?")
 st.caption(
     "Scénarios basés sur la **distribution historique des rendements** (2 ans). "
     "Bull = 75e centile, Base = médiane, Bear = 25e centile. "
     "❗ Les performances passées ne garantissent pas les performances futures."
 )
+
+with st.expander("📊 Méthodologie Monte-Carlo — comment fonctionne la simulation ?"):
+    st.markdown("""
+    La simulation utilise un **mouvement brownien géométrique** (GBM) : hypothèse standard
+    en finance pour modéliser les prix d’actifs.
+
+    **Étapes** :
+    1. Calcul des log-rendements journaliers sur les 2 dernières années : $r_t = \\ln(P_t / P_{t-1})$
+    2. Estimation de la **dérive** $\\mu$ (moyenne) et la **volatilité** $\\sigma$ (écart-type)
+    3. Génération de $N$ chemins aléatoires de longueur $H$ jours :
+       $P_{t+1} = P_t \\times e^{r_t}$ avec $r_t \\sim \\mathcal{N}(\\mu, \\sigma)$
+    4. Lecture des percentiles 5/25/50/75/95 à l’horizon choisi
+
+    **Limites du modèle** :
+    - Supporte des log-rendements gaussiens *i.i.d.* — sous-estime les queues épaisses (événements extrêmes)
+    - Ne modélise pas les régimes de marché (crise, vol cluster)
+    - $\\mu$ et $\\sigma$ calibrés sur l’historique récent ne sont pas stables dans le temps
+
+    **Interprétation** :
+    - **Intervalle de confiance 90%** (P5–P95) : 9 simulations sur 10 tombent dans cette zone
+    - **P50 (Base)** : scénario médian, autant de chances de finir au-dessus qu’en dessous
+    - **Probabilité de perte** : % de chemins se terminant en dessous du montant investi
+    """)
 
 with st.expander("⚙️ Paramètres de projection", expanded=True):
     p1, p2, p3 = st.columns(3)

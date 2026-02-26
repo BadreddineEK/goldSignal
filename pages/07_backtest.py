@@ -203,27 +203,77 @@ def _color_metric(val, good_positive=True):
 
 c1.metric("Rdt Total",
           f"{met_ref['total_return_pct']:+.1f}%",
-          f"B&H : {met_ref['bh_total_return_pct']:+.1f}%")
+          f"B&H : {met_ref['bh_total_return_pct']:+.1f}%",
+          help="Rendement total de la stratégie sur toute la période de backtest. Delta = comparaison vs Buy & Hold (détenir en continu).")
 c2.metric("Alpha annualisé",
           f"{met_ref['alpha_pct']:+.2f}%",
-          help="Surperformance vs Buy & Hold")
+          help="📊 Surperformance annualisée vs Buy & Hold. Alpha = Rdt stratégie - Rdt or passif. Positif = les signaux ML ajoutent de la valeur.")
 c3.metric("Sharpe (annualisé)",
           f"{met_ref['sharpe']:.3f}",
-          help=">1 = bon, >2 = excellent")
+          help="Rendement ajusté au risque : Rdt annualisé / Volatilité annualisée (x√252). < 0.5 = risqué · 0.5–1.0 = acceptable · > 1.0 = bon · > 2.0 = excellent (rare OOS).")
 c4.metric("Max Drawdown",
           f"{met_ref['max_drawdown_pct']:.1f}%",
-          help="Pire perte depuis un sommet")
+          help="Pire baisse depuis un sommet du capital. Ex : -20% signifie que le capital est passé de 10 000€ à 8 000€ à un moment de la simulation.")
 c5.metric("Win Rate",
           f"{met_ref['win_rate_pct']:.1f}%",
-          f"sur {met_ref['n_trades']} trades")
+          f"sur {met_ref['n_trades']} trades",
+          help="% de trades gagnants (rendement positif). Un win rate de 50% peut être rentable si les gains > pertes moyennes.")
 c6.metric("Profit Factor",
           f"{met_ref['profit_factor']:.2f}",
-          help=">1.5 = stratégie rentable")
+          help="Rapport gains bruts / pertes brutes. > 1.0 = stratégie rentable. > 1.5 = bonne. > 2.0 = très bonne. < 1.0 = stratégie perdante.")
+
+# Interprétation rapide des métriques clés
+with st.expander("📚 Guide d’interprétation des métriques"):
+    col_g1, col_g2, col_g3 = st.columns(3)
+    with col_g1:
+        st.markdown("""
+        **Sharpe Ratio**
+        $$\\text{Sharpe} = \\frac{\\bar{R}_{strat}}{\\sigma_{strat}} \\times \\sqrt{252}$$
+        Mesure le rendement **par unité de risque**. Taux sans risque = 0 (conservateur).
+
+        | Valeur | Interprétation |
+        |---|---|
+        | < 0 | Destructor de valeur |
+        | 0–0.5 | Risque élevé relatif |
+        | 0.5–1.0 | Acceptable |
+        | > 1.0 | Bon ✨ (rare OOS) |
+        | > 2.0 | Excellent 🏆 |
+
+        **Sortino Ratio**
+        Variante du Sharpe qui ne pénalise que la **volatilité négative** (downside).
+        Plus pertinent pour l’or qui a des crises asymétriques.
+        """)
+    with col_g2:
+        st.markdown("""
+        **Alpha**
+        Surperformance annualisée vs Buy & Hold.
+        $\\alpha > 0$ : le timing des signaux ML **bat** la détention passive.
+
+        **Max Drawdown (MDD)**
+        $$MDD = \\max_t \\left(\\frac{V_{peak} - V_t}{V_{peak}}\\right)$$
+        Pire stagnation depuis un sommet. Indicateur de risque psychologique :
+        *êtes-vous prêt à voir votre capital baisser de X% avant recouvrement ?*
+
+        **Calmar Ratio**
+        $$\\text{Calmar} = \\frac{\\text{CAGR}}{\\vert MDD \\vert}$$
+        Rendement annualisé divisé par le drawdown max.
+        > 1.0 = stratégie acceptable, > 2.0 = excellente.
+        """)
+    with col_g3:
+        st.markdown("""
+        **Win Rate & Profit Factor**
+        Le Win Rate seul ne suffit pas. Une stratégie gagnante peut avoir :
+        - 40% win rate si les gains moyens >> pertes moyennes
+        - 60% win rate mais perdante si les quelques grosses pertes dominent
+
+        $$\\text{Profit Factor} = \\frac{\\sum \\text{gains}}{\\sum \\vert \\text{pertes} \\vert}$$
+
+        **Exposition (%)**
+        % du temps où la stratégie est en position. Utile pour comparer deux stratégies
+        qui n’ont pas le même niveau d’activité (stratégie fréquente vs rare).
+        """)
 
 st.markdown("---")
-
-# ===========================================================================
-# SECTION 2 — Equity curve + Drawdown
 # ===========================================================================
 st.subheader("📈 Courbe de capitalisation vs Buy & Hold")
 
@@ -406,13 +456,34 @@ if not comp_df.empty:
 
 # Contexte académique
 st.markdown("---")
-with st.expander("📚 Note méthodologique"):
+with st.expander("📚 Note méthodologique complète"):
     st.markdown("""
-    - **Protocole walk-forward expanding** — aucun signal produit sur données vues à l'entraînement (zéro look-ahead bias).
-    - **Stratégie simulée** : Long or si signal = **Haussier (+1)**. Neutre sinon (pas de short — cohérent avec achat physique).
-    - **Frais** : coût aller-retour appliqué uniquement aux entrées/sorties de position (changement de signal).
-    - **Sharpe** : rendement annualisé / volatilité des rendements quotidiens de la stratégie × √252. Taux sans risque = 0 (conservateur).
-    - **Max Drawdown** : pire baisse depuis un sommet du capital.
-    - **Alpha** : surperformance annualisée vs Buy & Hold (détenir de l'or en continu).
-    - **Interprétation** : un Sharpe > 1 sur données OOS est un résultat solide. Les performances passées ne garantissent pas les performances futures.
+    #### Protocole walk-forward expanding
+    Les signaux ML sont produits en **walk-forward expanding window** : à chaque fenêtre,
+    le modèle est entraîné sur tout l’historique disponible jusqu’à la date $t$, puis prédit
+    pour la fenêtre $[t, t+H]$. **Aucun signal n’est produit sur des données vues en entraînement.**
+
+    #### Stratégie simulée
+    - **Long or** si signal = Haussier (+1) pour la période
+    - **Cash** (0% expo.) si signal = Neutre (0) ou Baissier (-1)
+    - Pas de short — cohérent avec l’achat d’or physique (pas de vente à découvert possible)
+
+    #### Frais de transaction
+    Les frais aller-retour (paramétrables en bps) sont déduits **à chaque changement de signal**
+    (entrée ou sortie de position). Sur or physique : spread Bid/Ask typique = 20–50 bps.
+
+    #### Calculs clés
+    - **Rendement stratégie** : $r_{strat,t} = r_{marché,t} \\times position_t - \\text{frais}_{\\text{si changement}}$
+    - **Equity curve** : $V_t = V_0 \\times \\prod_{s=1}^{t}(1 + r_{strat,s})$
+    - **Sharpe** : $(\\bar{r}_{strat} / \\sigma_{r_{strat}}) \\times \\sqrt{252}$, $R_f = 0$
+    - **Alpha** : $CAGR_{strat} - CAGR_{B\\&H}$ annualisé
+    - **Drawdown** : $dd_t = (\\max_{s \\leq t} V_s - V_t) / \\max_{s \\leq t} V_s$
+
+    #### Limites et biais résiduels
+    - **Survivorship bias** : les données yfinance ne couvrent que l’or liquide (GC=F) — pas de biais de survie ici
+    - **Transaction costs** : les frais simulés sont constants ; en pratique, le spread varie avec la liquidité
+    - **Slippage** : l’exécution au prix de clôture est idéale — en pratique, impact de marché réduit mais réel
+    - **Régimes** : le modèle est calibré sur un historique fixé ; un changement de régime macro peut dégrader rapidement les performances
+
+    > *Les performances passées ne préjugent pas des performances futures.*
     """)

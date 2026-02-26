@@ -113,7 +113,48 @@ except ImportError:
 # ── 1. Tableau comparatif multi-métriques ─────────────────────────────────
 # ---------------------------------------------------------------------------
 st.subheader(f"📊 Comparaison complète — Horizon {horizon}j")
+with st.expander("📚 Comprendre ces métriques — guide de lecture"):
+    col_b1, col_b2 = st.columns(2)
+    with col_b1:
+        st.markdown("""
+        **DA% — Directional Accuracy**
+        Pourcentage de fois où le modèle prédit la bonne direction (↑/↓/→) sur données hors-échantillon.
+        - < 50% : moins bon que le hasard
+        - 50–53% : faible signal, peu utile
+        - 54–57% : signal économiquement intéressant ✨
+        - > 57% : excellent sur données OOS 🏆
 
+        **Folds (moy DA)**
+        Moyenne du DA% sur chaque fenêtre walk-forward. Une valeur proche du DA% global
+        indique un modèle **stable** (ne surperforme pas que sur une période).
+
+        **RMSE — Root Mean Squared Error**
+        Erreur quadratique moyenne sur le label prédit (-1, 0, +1).
+        Plus bas = meilleur, mais moins parlant que DA% sur un problème de classification.
+
+        **MAE — Mean Absolute Error**
+        Erreur absolue moyenne. Moins sensible aux outliers que RMSE.
+        """)
+    with col_b2:
+        st.markdown("""
+        **Brier Score ↓ (multiclasse)**
+        Erreur quadratique moyenne sur les **probabilités** prédites.
+        Formule : $BS = \\frac{1}{N}\\sum_t \\sum_k (p_{t,k} - y_{t,k})^2$
+        - Baseline naïve (classes équiprobables) : ~0.67
+        - ≤ 0.55 : bonne calibration 🟢
+        - 0.55–0.65 : moyenne 🟡
+        - > 0.65 : calibration pauvre 🔴
+
+        **Log-Loss ↓**
+        Log-vraisemblance négative — pénalise **exponentiellement** les prédictions
+        confiantes mais fausses. Complémentaire au Brier Score.
+        - Baseline naïve : ~1.10 (log(3))
+        - < 0.90 : bon
+        - < 0.75 : excellent
+
+        **N échantillons**
+        Nombre de prédictions OOS réalisées. Un n plus grand = métriques plus fiables.
+        """)
 rows = []
 le = LabelEncoder(); le.fit([-1, 0, 1])
 
@@ -173,8 +214,9 @@ st.dataframe(
 )
 
 st.caption("""
-**Lecture** : DA% > 55% = signal économiquement utile | Brier ↓ = meilleure calibration probabiliste |
-Log-Loss ↓ = meilleure incertitude prédictive | toutes métriques calculées sur données **hors-échantillon**.
+**Lecture** : 🟢 DA > 57% = excellent | 🟡 DA 54-57% = utile | 🔴 DA < 50% = moins bon que le hasard ·
+Brier ↓ = meilleure calibration probabiliste | Log-Loss ↓ = meilleure incertitude prédictive
+| Toutes métriques calculées sur données **hors-échantillon** (walk-forward).
 """)
 
 st.markdown("---")
