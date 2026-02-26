@@ -175,8 +175,7 @@ goldSignal/
 ## 👤 Auteur
 
 **Badreddine EL KHAMLICHI**  
-Data Scientist @ Efor · Mission Boehringer Ingelheim Lyon  
-Diplômé Polytech Lyon — Mathématiques Appliquées (2024)
+
 
 ---
 
